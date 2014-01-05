@@ -1,0 +1,109 @@
+#!/usr/bin/env python
+"""
+usage:
+
+    pyffconv [options] {input file} {output file}
+
+options:
+
+    -f format       Override detected input format (ffmpeg -f).
+    -F format       Override detected output format (ffmpeg -f).
+    -i              Dump file information.
+
+"""
+
+#from subprocess import call
+import subprocess
+import sys
+
+class Ffmpeg:
+    def __init__(self):
+        pass
+
+    def probe(self, path):
+        """Query path with ffprobe and return output string."""
+        return subprocess.check_output(["ffprobe", path], stderr=subprocess.STDOUT)
+
+
+    def info(self, path, stream=subprocess.STDOUT):
+        """Query path with ffprobe and write() to stream."""
+        stream.write(self.probe(path))
+
+
+    def report(self, path):
+        """Return an array subset of probed informations."""
+        slurp = False
+        r = []
+        for line in self.probe(path).split("\n"):
+
+            if line.startswith('Input #0'):
+                slurp = True
+
+            if slurp and line.find('Duration: ') is not -1:
+                # r.append(line)
+                r.append(line.strip())
+                slurp = False
+
+            if line.find('Stream #0:') is not -1:
+                slurp = False
+                r.append(line.strip())
+
+            if slurp:
+                r.append(line)
+
+        return r
+
+
+
+
+def main(argv):
+    """Program main entry point."""
+
+    ffmpeg = Ffmpeg()
+
+    file_list = []
+
+    i_flag = False
+    r_flag = False
+
+    for i in range(1, len(argv)-1):
+        # print("i={0}".format(i))
+
+        if argv[i].startswith('-'):
+            print("arg: "+argv[i])
+            c = argv[i]
+            if c == '-i':
+                # print("info")
+                i_flag = True
+            elif c == '-r':
+                # print("report")
+                r_flag = True
+            elif c == '--':
+                # print("--: end of options found")
+                continue
+        else:
+            file_list = argv[i:]
+            # print("remainder:")
+            # for e in argv[i:]:
+                # print(e)
+            # print('-------')
+
+    # print("File list:")
+    # for f in file_list:
+        # print(f)
+
+    if i_flag or r_flag:
+        for f in file_list:
+            if i_flag:
+                ffmpeg.info(f, sys.stdout)
+            elif r_flag:
+                print("Report for {0}".format(f))
+                for elem in ffmpeg.report(f):
+                    print(elem)
+
+
+        sys.exit(0)
+
+
+if __name__ == "__main__":
+    main(sys.argv)
