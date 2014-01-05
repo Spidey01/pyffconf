@@ -39,12 +39,12 @@ class Ffmpeg:
             if line.startswith('Input #0'):
                 slurp = True
 
-            if slurp and line.find('Duration: ') is not -1:
+            if slurp and line.find('Duration: ') != -1:
                 # r.append(line)
                 r.append(line.strip())
                 slurp = False
 
-            if line.find('Stream #0:') is not -1:
+            if line.find('Stream #0:') != -1:
                 slurp = False
                 r.append(line.strip())
 
