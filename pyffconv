@@ -103,11 +103,11 @@ def main(argv):
         for f in file_list:
             print("\t{0}".format(f))
 
-    if options['i'] or options['r']:
+    if options.has_key('i') or options.has_key('r'):
         for f in file_list:
-            if options['i']:
+            if options.has_key('i'):
                 ffmpeg.info(f, sys.stdout)
-            elif options['r']:
+            elif options.has_key('r'):
                 print("Report for {0}".format(f))
                 for elem in ffmpeg.report(f):
                     print(elem)
