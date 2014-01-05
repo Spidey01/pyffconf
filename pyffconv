@@ -54,7 +54,35 @@ class Ffmpeg:
         return r
 
 
+def parse_arguments(argv):
+    """Return a dictionary of options and list of arguments.
 
+    Options in the form -x are returned as key 'x' with value True.
+    Remaining elements at end or after --, are returned as an array.
+    """
+
+    options = {}
+    remainder = []
+
+    for i in range(1, len(argv)-1):
+        # print("i={0}".format(i))
+
+        if argv[i].startswith('-'):
+            # print("arg: "+argv[i])
+            c = argv[i]
+            if c in ('-i', '-r'):
+                options[c[1:]] = True
+            elif c == '--':
+                # print("--: end of options found")
+                continue
+        else:
+            remainder = argv[i:]
+            # print("remainder:")
+            # for e in remainder:
+                # print(e)
+            # print('-------')
+
+    return (options, remainder)
 
 def main(argv):
     """Program main entry point."""
@@ -63,40 +91,21 @@ def main(argv):
 
     file_list = []
 
-    i_flag = False
-    r_flag = False
+    (options, file_list) = parse_arguments(argv)
 
-    for i in range(1, len(argv)-1):
-        # print("i={0}".format(i))
+    print("options:")
+    for k in options.keys():
+        print("\t{0} => {1}".format(k, options[k]))
 
-        if argv[i].startswith('-'):
-            print("arg: "+argv[i])
-            c = argv[i]
-            if c == '-i':
-                # print("info")
-                i_flag = True
-            elif c == '-r':
-                # print("report")
-                r_flag = True
-            elif c == '--':
-                # print("--: end of options found")
-                continue
-        else:
-            file_list = argv[i:]
-            # print("remainder:")
-            # for e in argv[i:]:
-                # print(e)
-            # print('-------')
+    print("file_list:")
+    for f in file_list:
+        print("\t{0}".format(f))
 
-    # print("File list:")
-    # for f in file_list:
-        # print(f)
-
-    if i_flag or r_flag:
+    if options['i'] or options['r']:
         for f in file_list:
-            if i_flag:
+            if options['i']:
                 ffmpeg.info(f, sys.stdout)
-            elif r_flag:
+            elif options['r']:
                 print("Report for {0}".format(f))
                 for elem in ffmpeg.report(f):
                     print(elem)
