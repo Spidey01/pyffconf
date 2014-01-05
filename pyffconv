@@ -116,12 +116,15 @@ def main(argv):
 
     if len(file_list) != 2:
         print("In conversion mode but file list given is not two paths.")
-        if len(file_list) == 0:
+        length = len(file_list)
+        print("length == {0}".format(length))
+        if length == 0:
             print("A source input file is required.")
-        elif len(file_list) == 1:
+        if length < 2:
             print("A destination output file is required.")
-        else:
+        if length > 2:
             print("Too many files listed.")
+        sys.exit(1)
 
     assert len(file_list) == 2
 
