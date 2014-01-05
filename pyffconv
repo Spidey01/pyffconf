@@ -54,6 +54,7 @@ class Ffmpeg:
         return r
 
 
+# FIXME: if remainder == 1; returns []. > 1 works fine.
 def parse_arguments(argv):
     """Return a dictionary of options and list of arguments.
 
@@ -65,22 +66,22 @@ def parse_arguments(argv):
     remainder = []
 
     for i in range(1, len(argv)-1):
-        # print("i={0}".format(i))
+        print("i={0}".format(i))
 
         if argv[i].startswith('-'):
-            # print("arg: "+argv[i])
+            print("arg: "+argv[i])
             c = argv[i]
             if c in ('-i', '-r', '--debug'):
                 options[c[1:]] = True
             elif c == '--':
-                # print("--: end of options found")
+                print("--: end of options found")
                 continue
         else:
             remainder = argv[i:]
-            # print("remainder:")
-            # for e in remainder:
-                # print(e)
-            # print('-------')
+            print("remainder:")
+            for e in remainder:
+                print(e)
+            print('-------')
             break
 
     return (options, remainder)
