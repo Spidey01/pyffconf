@@ -70,7 +70,7 @@ def parse_arguments(argv):
         if argv[i].startswith('-'):
             # print("arg: "+argv[i])
             c = argv[i]
-            if c in ('-i', '-r'):
+            if c in ('-i', '-r', '--debug'):
                 options[c[1:]] = True
             elif c == '--':
                 # print("--: end of options found")
@@ -84,6 +84,7 @@ def parse_arguments(argv):
 
     return (options, remainder)
 
+
 def main(argv):
     """Program main entry point."""
 
@@ -93,13 +94,14 @@ def main(argv):
 
     (options, file_list) = parse_arguments(argv)
 
-    print("options:")
-    for k in options.keys():
-        print("\t{0} => {1}".format(k, options[k]))
+    if options['-debug']:
+        print("options:")
+        for k in options.keys():
+            print("\t{0} => {1}".format(k, options[k]))
 
-    print("file_list:")
-    for f in file_list:
-        print("\t{0}".format(f))
+        print("file_list:")
+        for f in file_list:
+            print("\t{0}".format(f))
 
     if options['i'] or options['r']:
         for f in file_list:
@@ -112,6 +114,7 @@ def main(argv):
 
 
         sys.exit(0)
+
 
 
 if __name__ == "__main__":
