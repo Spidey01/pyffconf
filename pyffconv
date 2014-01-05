@@ -66,26 +66,25 @@ def parse_arguments(argv):
     remainder = []
 
     for i in range(1, len(argv)-1):
-        print("i={0}".format(i))
+        # print("i={0}".format(i))
 
         if argv[i].startswith('-'):
-            print("arg: "+argv[i])
+            # print("arg: "+argv[i])
             c = argv[i]
             if c in ('-i', '-r', '--debug'):
                 options[c[1:]] = True
             elif c == '--':
-                print("--: end of options found")
+                # print("--: end of options found")
                 continue
         else:
             remainder = argv[i:]
-            print("remainder:")
-            for e in remainder:
-                print(e)
-            print('-------')
+            # print("remainder:")
+            # for e in remainder:
+                # print(e)
+            # print('-------')
             break
 
     return (options, remainder)
-
 
 def main(argv):
     """Program main entry point."""
@@ -96,7 +95,7 @@ def main(argv):
 
     (options, file_list) = parse_arguments(argv)
 
-    if options['-debug']:
+    if options.has_key('-debug'):
         print("options:")
         for k in options.keys():
             print("\t{0} => {1}".format(k, options[k]))
