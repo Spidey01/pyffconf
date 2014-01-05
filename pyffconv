@@ -81,6 +81,7 @@ def parse_arguments(argv):
             # for e in remainder:
                 # print(e)
             # print('-------')
+            break
 
     return (options, remainder)
 
