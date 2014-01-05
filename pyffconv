@@ -111,10 +111,18 @@ def main(argv):
                 print("Report for {0}".format(f))
                 for elem in ffmpeg.report(f):
                     print(elem)
-
-
         sys.exit(0)
 
+    if len(file_list) != 2:
+        print("In conversion mode but file list given is not two paths.")
+        if len(file_list) == 0:
+            print("A source input file is required.")
+        elif len(file_list) == 1:
+            print("A destination output file is required.")
+        else:
+            print("Too many files listed.")
+
+    assert len(file_list) == 2
 
 
 if __name__ == "__main__":
