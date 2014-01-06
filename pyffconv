@@ -12,34 +12,43 @@ options:
 
 """
 
-#from subprocess import call
 import subprocess
 import sys
 
-class Stream:
+
+class Stream: #{{{
     """Interface to a streams info."""
 
-    def __init__(self):
+    def __init__(self): #{{{
         pass
+    #}}}
 
-    def from_report(self, report):
+
+    def from_report(self, report): #{{{
         """Stream from Ffmpeg.report()."""
+    #}}}
 
-    def from_spec(self, spec):
+
+    def from_spec(self, spec): #{{{
         """From a Stream ... element of Ffmpeg.report()."""
+    #}}}
+#}}}
 
-class Ffmpeg:
-    def __init__(self):
+class Ffmpeg: #{{{
+    def __init__(self): #{{{
         pass
+    #}}}
 
-    def probe(self, path):
+    def probe(self, path): #{{{
         """Query path with ffprobe and return output string."""
         return subprocess.check_output(["ffprobe", path], stderr=subprocess.STDOUT)
+    #}}}
 
 
-    def info(self, path, stream=subprocess.STDOUT):
+    def info(self, path, stream=subprocess.STDOUT): #{{{
         """Query path with ffprobe and write() to stream."""
         stream.write(self.probe(path))
+    #}}}
 
 
     def report(self, path):
@@ -66,7 +75,7 @@ class Ffmpeg:
         return r
 
 
-    def convert(self, input_path, output_path):
+    def convert(self, input_path, output_path): #{{{
         """Smart conversion of input_path to output_path."""
 
         args = ["/bin/echo",
@@ -97,11 +106,12 @@ class Ffmpeg:
         args.append(output_path)
 
         subprocess.check_call(args)
-
+    #}}}
+#}}}
 
 
 # FIXME: if remainder == 1; returns []. > 1 works fine.
-def parse_arguments(argv):
+def parse_arguments(argv): #{{{
     """Return a dictionary of options and list of arguments.
 
     Options in the form -x are returned as key 'x' with value True.
@@ -131,8 +141,10 @@ def parse_arguments(argv):
             break
 
     return (options, remainder)
+#}}}
 
-def main(argv):
+
+def main(argv): #{{{
     """Program main entry point."""
 
     ffmpeg = Ffmpeg()
@@ -174,7 +186,8 @@ def main(argv):
 
     assert len(file_list) == 2
     ffmpeg.convert(*file_list)
+#}}}
 
-
-if __name__ == "__main__":
+if __name__ == "__main__": #{{{
     main(sys.argv)
+#}}}
