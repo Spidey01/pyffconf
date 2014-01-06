@@ -16,6 +16,18 @@ options:
 import subprocess
 import sys
 
+class Stream:
+    """Interface to a streams info."""
+
+    def __init__(self):
+        pass
+
+    def from_report(self, report):
+        """Stream from Ffmpeg.report()."""
+
+    def from_spec(self, spec):
+        """From a Stream ... element of Ffmpeg.report()."""
+
 class Ffmpeg:
     def __init__(self):
         pass
@@ -52,6 +64,40 @@ class Ffmpeg:
                 r.append(line)
 
         return r
+
+
+    def convert(self, input_path, output_path):
+        """Smart conversion of input_path to output_path."""
+
+        args = ["/bin/echo",
+            "ffmpeg",
+            "-i", input_path,
+        ]
+
+        # Analyze streams and decide how to convert the thing.
+        report = self.report(input_path)
+        count_of_streams = 0
+
+        for line in report:
+            if line.startswith('Stream #0:'):
+                count_of_streams += 1
+                colon_fields = line.split(':')
+
+                # the partition will make sure we skip things like '(eng)' in '1(eng)'
+                stream_number = colon_fields[1].partition('(')
+
+                # Audio, Video, Subtitle, Attachment. (That I know of.)
+                stream_type =  colon_fields[2].strip()
+
+                stream_data = colon_fields[3].strip()
+                # strip whitepsace from fields by common.
+                stream_data_fields = [ x.strip() for x in stream_data.split(',') ]
+
+
+        args.append(output_path)
+
+        subprocess.check_call(args)
+
 
 
 # FIXME: if remainder == 1; returns []. > 1 works fine.
@@ -127,6 +173,7 @@ def main(argv):
         sys.exit(1)
 
     assert len(file_list) == 2
+    ffmpeg.convert(*file_list)
 
 
 if __name__ == "__main__":
