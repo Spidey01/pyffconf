@@ -159,20 +159,19 @@ class Ffmpeg: #{{{
 
 
     # TODO replace override_comment with just using metadata['comment'].
-    def _get_aac_args(self, stream, override_bitrate=None, override_comment=None, metadata={}): #{{{
+    def _get_aac_args(self, stream, bitrate=None, metadata={}): #{{{
         if stream.channels == 2: # stereo
-            bitrate = '192k'
+            bitrate = bitrate or '192k'
             comment = 'stereo'
         elif stream.channels > 2: # surround
-            bitrate = "640k"
+            bitrate = bitrate or '640k'
             comment = 'surround'
         else:
             return 'copy'
 
-        bitrate = override_bitrate or bitrate
-        comment = override_comment or comment
+        metadata['comment'] = metadata.get('comment', comment)
 
-        p = 'aac -ab:{0} {1} -metadata:s:a:{2} "comment={3}"'.format(stream.number, bitrate, stream.number-1, comment)
+        p = 'aac -ab:{0} {1}'.format(stream.number, bitrate, stream.number-1)
         for k, v in metadata.items():
             p = p + ' -metadata:s:a:{0} "{1}={2}"'.format(stream.number-1, k, v)
         p = p + ' -strict experimental'
@@ -181,23 +180,27 @@ class Ffmpeg: #{{{
     #}}}
 
 
-    def _get_aac_downmix_args(self, stream, override_bitrate=None, metadata={}): #{{{
-        """Get flags to convert stream to aac, and downmix to stereo."""
+    def _get_aac_downmix_args(self, stream, bitrate=None, metadata={}): #{{{
+        """Get flags to convert stream to aac, and downmix to stereo.
+
+        If bitrate is None then a default will be used.
+        """
 
         #
         # We override the title metadata because we're downmixing and ffmpeg
         # will just copy the old, which would usually be like 3/2+1 for 6
         # channels.
         #
-        metadata['title'] = '2/0'
+        metadata['title'] = metadata.get('title', '2/0')
         metadata['comment'] = metadata.get('comment', 'downmixed')
         #
         # Seems ffmpeg can only go up to 576k here. Dunno why.  That's still
         # 72k (8 channel) to 95k (6 channel) worth of head room per channel. So
         # I'm sure that's enough space to avoid ditching too much data.
         #
-        bitrate = override_bitrate or '576k'
+        bitrate = bitrate or '576k'
 
+        # could we reuse _get_acc_args here and keep ffmpeg happy?
         p = ''
         for k, v in metadata.items():
             p = p + ' -metadata:s:a:{0} "{1}={2}"'.format(stream.number-1, k, v)
