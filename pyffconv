@@ -19,20 +19,74 @@ import sys
 class Stream: #{{{
     """Interface to a streams info."""
 
-    def __init__(self): #{{{
-        pass
+
+    def __init__(self, s_number, s_type, s_info): #{{{
+        # strip whitepsace from fields by common.
+        self.number = s_number
+        self.type = s_type
+        self.info = s_info
+        self.info_fields = [ x.strip() for x in s_info.split(',') ]
     #}}}
 
 
-    def from_report(self, report): #{{{
+    def __str__(self): #{{{
+        return "( number={0}, type={1}, infos={2} )".format(self.number, self.type, self.info)
+    #}}}
+
+
+    @classmethod
+    def from_report(cls, report): #{{{
         """Stream from Ffmpeg.report()."""
+
+        streams = []
+        for line in report:
+            if line.startswith('Stream #0:'):
+                streams.append(cls.from_spec(line))
+        return streams
+
+        #{{{
+        # for line in report:
+        #     if line.startswith('Stream #0:'):
+        #         colon_fields = line.split(':')
+
+        #         # the partition will make sure we skip things like '(eng)' in '1(eng)'
+        #         stream_number = colon_fields[1].partition('(')[0]
+
+        #         # Audio, Video, Subtitle, Attachment. (That I know of.)
+        #         stream_type =  colon_fields[2].strip()
+
+        #         stream_data = colon_fields[3].strip()
+        #         # strip whitepsace from fields by common.
+        #         stream_data_fields = [ x.strip() for x in stream_data.split(',') ]
+
+        #         streams.append(Stream(stream_number, stream_type, stream_data))
+
+        # return streams
+        #}}}
     #}}}
 
 
-    def from_spec(self, spec): #{{{
+    @classmethod
+    def from_spec(cls, spec): #{{{
         """From a Stream ... element of Ffmpeg.report()."""
+
+        if not spec.startswith('Stream #0:'):
+            raise ArgumentError("Not a stream spec.")
+
+        colon_fields = spec.split(':')
+
+        # the partition will make sure we skip things like '(eng)' in '1(eng)'
+        stream_number = colon_fields[1].partition('(')[0]
+
+        # Audio, Video, Subtitle, Attachment. (That I know of.)
+        stream_type =  colon_fields[2].strip()
+
+        stream_data = colon_fields[3].strip()
+
+        return Stream(stream_number, stream_type, stream_data)
     #}}}
 #}}}
+
 
 class Ffmpeg: #{{{
     def __init__(self): #{{{
@@ -51,7 +105,7 @@ class Ffmpeg: #{{{
     #}}}
 
 
-    def report(self, path):
+    def report(self, path): #{{{
         """Return an array subset of probed informations."""
         slurp = False
         r = []
@@ -73,6 +127,7 @@ class Ffmpeg: #{{{
                 r.append(line)
 
         return r
+    #}}}
 
 
     def convert(self, input_path, output_path): #{{{
@@ -84,23 +139,12 @@ class Ffmpeg: #{{{
         ]
 
         # Analyze streams and decide how to convert the thing.
-        report = self.report(input_path)
-        count_of_streams = 0
-
-        for line in report:
-            if line.startswith('Stream #0:'):
-                count_of_streams += 1
-                colon_fields = line.split(':')
-
-                # the partition will make sure we skip things like '(eng)' in '1(eng)'
-                stream_number = colon_fields[1].partition('(')
-
-                # Audio, Video, Subtitle, Attachment. (That I know of.)
-                stream_type =  colon_fields[2].strip()
-
-                stream_data = colon_fields[3].strip()
-                # strip whitepsace from fields by common.
-                stream_data_fields = [ x.strip() for x in stream_data.split(',') ]
+        streams = Stream.from_report(self.report(input_path))
+        print("SOD")
+        for stream in streams:
+            # print(stream)
+            print("stream=|{0}|".format(stream))
+        print("EOF")
 
 
         args.append(output_path)
@@ -169,7 +213,10 @@ def main(argv): #{{{
             elif options.has_key('r'):
                 print("Report for {0}".format(f))
                 for elem in ffmpeg.report(f):
-                    print(elem)
+                    print("elem=|{0}|".format(elem))
+                    # print(elem)
+            else:
+                print("Internal error.")
         sys.exit(0)
 
     if len(file_list) != 2:
@@ -187,6 +234,7 @@ def main(argv): #{{{
     assert len(file_list) == 2
     ffmpeg.convert(*file_list)
 #}}}
+
 
 if __name__ == "__main__": #{{{
     main(sys.argv)
