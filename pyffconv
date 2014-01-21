@@ -153,6 +153,11 @@ class Ffmpeg: #{{{
     #}}}
 
 
+    def _get_libx264_args(self, crf=23, profile='high', preset='medium', level='4.1'): #{{{
+        return "libx264 -crf {0} -profile:v {1} -preset {2} -level {3}".format(crf, profile, preset, level)
+    #}}}
+
+
     def _get_aac_args(self, stream, override_bitrate=None, override_comment=None, metadata={}): #{{{
         if stream.channels == 2: # stereo
             bitrate = '192k'
