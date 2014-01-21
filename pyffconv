@@ -158,6 +158,7 @@ class Ffmpeg: #{{{
     #}}}
 
 
+    # TODO replace override_comment with just using metadata['comment'].
     def _get_aac_args(self, stream, override_bitrate=None, override_comment=None, metadata={}): #{{{
         if stream.channels == 2: # stereo
             bitrate = '192k'
@@ -177,6 +178,30 @@ class Ffmpeg: #{{{
         p = p + ' -strict experimental'
 
         return p
+    #}}}
+
+
+    def _get_aac_downmix_args(self, stream, override_bitrate=None, metadata={}): #{{{
+        """Get flags to convert stream to aac, and downmix to stereo."""
+
+        #
+        # We override the title metadata because we're downmixing and ffmpeg
+        # will just copy the old, which would usually be like 3/2+1 for 6
+        # channels.
+        #
+        metadata['title'] = '2/0'
+        metadata['comment'] = metadata.get('comment', 'downmixed')
+        #
+        # Seems ffmpeg can only go up to 576k here. Dunno why.  That's still
+        # 72k (8 channel) to 95k (6 channel) worth of head room per channel. So
+        # I'm sure that's enough space to avoid ditching too much data.
+        #
+        bitrate = override_bitrate or '576k'
+
+        p = ''
+        for k, v in metadata.items():
+            p = p + ' -metadata:s:a:{0} "{1}={2}"'.format(stream.number-1, k, v)
+        return 'aac {0} -ab:{1} {2} -filter:{1} aresample=matrix_encoding=dplii -ac:{1} 2 -strict experimental'.format(p, stream.number, bitrate)
     #}}}
 
 
