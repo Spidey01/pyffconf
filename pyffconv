@@ -151,6 +151,30 @@ class Ffmpeg: #{{{
 
         subprocess.check_call(args)
     #}}}
+
+
+    def _get_aac_args(self, stream, override_bitrate=None, override_comment=None, metadata={}): #{{{
+        if stream.channels == 2: # stereo
+            bitrate = '192k'
+            comment = 'stereo'
+        elif stream.channels > 2: # surround
+            bitrate = "640k"
+            comment = 'surround'
+        else:
+            return 'copy'
+
+        bitrate = override_bitrate or bitrate
+        comment = override_comment or comment
+
+        p = 'aac -ab:{0} {1} -metadata:s:a:{2} "comment={3}"'.format(stream.number, bitrate, stream.number-1, comment)
+        for k, v in metadata.items():
+            p = p + ' -metadata:s:a:{0} "{1}={2}"'.format(stream.number-1, k, v)
+        p = p + ' -strict experimental'
+
+        return p
+    #}}}
+
+
 #}}}
 
 
