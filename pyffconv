@@ -31,18 +31,71 @@ Options = None
 class Stream: #{{{
     """Interface to a streams info."""
 
+    T_VIDEO = "Video"
+    T_AUDIO = "Audio"
+    T_SUBTITLE = "Subtitle"
+    T_ATTACHMENT = "Attachment"
 
-    def __init__(self, s_number, s_type, s_info): #{{{
-        # strip whitepsace from fields by common.
-        self.number = s_number
-        self.type = s_type
-        self.info = s_info
-        self.info_fields = [ x.strip() for x in s_info.split(',') ]
+    __channel_regex = re.compile('^\d.\d')
+
+    def __init__(self, stream_line): #{{{
+        """Create a object representing a Stream.
+
+        The input is in the same format as a From a Stream ... element
+        of Ffmpeg.report().
+        """
+
+        # XXX #0: should be more dynamic but this is fine in practice.
+        if not stream_line.startswith('Stream #0:'):
+            raise ArgumentError("Not a stream spec.")
+
+        colon_fields = stream_line.split(':')
+
+
+        #
+        # Common things.
+        #
+
+        # the partition will make sure we skip things like '(eng)' in '1(eng)'
+        self.number = int(colon_fields[1].partition('(')[0])
+
+        # Audio, Video, Subtitle, Attachment. (That I know of.)
+        self.type = colon_fields[2].strip()
+
+        self.info = colon_fields[3].strip()
+        self.info_fields = [ x.strip() for x in self.info.split(',') ]
+
+        self.format = self.info_fields[0]
+
+        # Audio things.
+
+        # sample rate in hz
+        self.rate = None
+        if self.type == self.T_AUDIO:
+            self.rate = self.info_fields[1].split()[0]
+
+        self.channels = None
+        if self.type == self.T_AUDIO:
+            ch = self.info_fields[2]
+            if ch == "stereo":
+                self.channels = 2
+            elif self.__channel_regex.match(ch):
+                main, _, lfe = ch.partition('.')
+                self.channels = int(main) + int(re.sub('\(.+', '', lfe))
+            else:
+                self.channels = ch
     #}}}
 
 
     def __str__(self): #{{{
-        return "( number={0}, type={1}, infos={2} )".format(self.number, self.type, self.info)
+        return """(
+    number={0},
+    type={1},
+    format={2},
+    channels={3},
+    rate={4},
+    info={5}
+)""".format(self.number, self.type, self.format, self.channels, self.rate, self.info)
     #}}}
 
 
@@ -53,49 +106,8 @@ class Stream: #{{{
         streams = []
         for line in report:
             if line.startswith('Stream #0:'):
-                streams.append(cls.from_spec(line))
+                streams.append(cls(line))
         return streams
-
-        #{{{
-        # for line in report:
-        #     if line.startswith('Stream #0:'):
-        #         colon_fields = line.split(':')
-
-        #         # the partition will make sure we skip things like '(eng)' in '1(eng)'
-        #         stream_number = colon_fields[1].partition('(')[0]
-
-        #         # Audio, Video, Subtitle, Attachment. (That I know of.)
-        #         stream_type =  colon_fields[2].strip()
-
-        #         stream_data = colon_fields[3].strip()
-        #         # strip whitepsace from fields by common.
-        #         stream_data_fields = [ x.strip() for x in stream_data.split(',') ]
-
-        #         streams.append(Stream(stream_number, stream_type, stream_data))
-
-        # return streams
-        #}}}
-    #}}}
-
-
-    @classmethod
-    def from_spec(cls, spec): #{{{
-        """From a Stream ... element of Ffmpeg.report()."""
-
-        if not spec.startswith('Stream #0:'):
-            raise ArgumentError("Not a stream spec.")
-
-        colon_fields = spec.split(':')
-
-        # the partition will make sure we skip things like '(eng)' in '1(eng)'
-        stream_number = colon_fields[1].partition('(')[0]
-
-        # Audio, Video, Subtitle, Attachment. (That I know of.)
-        stream_type =  colon_fields[2].strip()
-
-        stream_data = colon_fields[3].strip()
-
-        return Stream(stream_number, stream_type, stream_data)
     #}}}
 #}}}
 
