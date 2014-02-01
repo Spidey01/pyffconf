@@ -10,13 +10,23 @@ options:
     -F format       Override detected output format (ffmpeg -f).
     -i              Dump file information (verbose).
     -r              Report stream information (terse).
+    -C              Input audio is feature surround + commentary stereo.
+    -d              Input audio is feature in surround + stereo.
 
 """
 
+try:
+    import argparse
+except:
+    print("You need to install the argparse module or upgrade to Python 2.7+.")
 import re
 import subprocess
 import sys
 
+#
+# This will be set to the result of calling parse_arguments() by main().
+#
+Options = None
 
 class Stream: #{{{
     """Interface to a streams info."""
@@ -213,37 +223,41 @@ class Ffmpeg: #{{{
 #}}}
 
 
-# FIXME: if remainder == 1; returns []. > 1 works fine.
 def parse_arguments(argv): #{{{
-    """Return a dictionary of options and list of arguments.
+    """Return a object representing the arguments."""
 
-    Options in the form -x are returned as key 'x' with value True.
-    Remaining elements at end or after --, are returned as an array.
-    """
 
-    options = {}
-    remainder = []
+    p = argparse.ArgumentParser(prog=argv[0])
+    p.add_argument('--debug', action='store_true',
+            help="For developers.")
+    p.add_argument('-C', '--second-stream-is-commentary', action='store_true', dest='commentary_follows',
+            help="Audio streams are surround feature followed by commentary.")
+    p.add_argument('-F', '--output-format', dest='output_format', type=str, metavar='FORMAT',
+            help="Force output container to be in FORMAT.")
+    p.add_argument('-d', '--second-stream-is-downmixed', action='store_true', dest='downmix_follows',
+            help="Audio streams are surround feature followed by already downmixed feature.")
+    p.add_argument('-f', '--input-format', dest='input_format', type=str, metavar='FORMAT',
+            help="Force input container to be detected as FORMAT.")
+    p.add_argument('-i', '--information', action='store_true', dest='info',
+            help="Verbose dump of file contents.")
+    p.add_argument('-r', '--report', action='store_true', dest='report',
+            help="Concise report of file contents.")
+    p.add_argument('file_list', nargs=argparse.REMAINDER)
 
-    for i in range(1, len(argv)-1):
-        # print("i={0}".format(i))
+    args = p.parse_args(argv[1:])
 
-        if argv[i].startswith('-'):
-            # print("arg: "+argv[i])
-            c = argv[i]
-            if c in ('-i', '-r', '--debug'):
-                options[c[1:]] = True
-            elif c == '--':
-                # print("--: end of options found")
-                continue
-        else:
-            remainder = argv[i:]
-            # print("remainder:")
-            # for e in remainder:
-                # print(e)
-            # print('-------')
-            break
+    if args.debug:
+        print("debug                => {0}".format(args.debug))
+        print('commentary_follows   => {0}'.format(args.commentary_follows))
+        print("output_format        => {0}".format(args.output_format))
+        print('downmix_follows      => {0}'.format(args.downmix_follows))
+        print("input_format         => {0}".format(args.input_format))
+        print('info                 => {0}'.format(args.info))
+        print('report               => {0}'.format(args.report))
+        print('file_list            => {0}'.format(args.file_list))
+        print('argv                 => {0}'.format(argv))
 
-    return (options, remainder)
+    return args
 #}}}
 
 
@@ -251,25 +265,14 @@ def main(argv): #{{{
     """Program main entry point."""
 
     ffmpeg = Ffmpeg()
+    Options = parse_arguments(argv)
 
-    file_list = []
 
-    (options, file_list) = parse_arguments(argv)
-
-    if options.has_key('-debug'):
-        print("options:")
-        for k in options.keys():
-            print("\t{0} => {1}".format(k, options[k]))
-
-        print("file_list:")
-        for f in file_list:
-            print("\t{0}".format(f))
-
-    if options.has_key('i') or options.has_key('r'):
-        for f in file_list:
-            if options.has_key('i'):
+    if Options.info or Options.report:
+        for f in Options.file_list:
+            if Options.info:
                 ffmpeg.info(f, sys.stdout)
-            elif options.has_key('r'):
+            elif Options.report:
                 print("Report for {0}".format(f))
                 for elem in ffmpeg.report(f):
                     print("elem=|{0}|".format(elem))
@@ -278,9 +281,9 @@ def main(argv): #{{{
                 print("Internal error.")
         sys.exit(0)
 
-    if len(file_list) != 2:
+    length = len(Options.file_list)
+    if length != 2:
         print("In conversion mode but file list given is not two paths.")
-        length = len(file_list)
         print("length == {0}".format(length))
         if length == 0:
             print("A source input file is required.")
@@ -290,8 +293,8 @@ def main(argv): #{{{
             print("Too many files listed.")
         sys.exit(1)
 
-    assert len(file_list) == 2
-    ffmpeg.convert(*file_list)
+    assert length == 2
+    ffmpeg.convert(*Options.file_list)
 #}}}
 
 
