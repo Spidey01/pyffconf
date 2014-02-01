@@ -227,7 +227,8 @@ def parse_arguments(argv): #{{{
     """Return a object representing the arguments."""
 
 
-    p = argparse.ArgumentParser(prog=argv[0])
+    p = argparse.ArgumentParser(prog=argv[0],
+            description="Convertion tool built in Python and using ffmpeg.")
     p.add_argument('--debug', action='store_true',
             help="For developers.")
     p.add_argument('-C', '--second-stream-is-commentary', action='store_true', dest='commentary_follows',
@@ -284,7 +285,9 @@ def main(argv): #{{{
     length = len(Options.file_list)
     if length != 2:
         print("In conversion mode but file list given is not two paths.")
-        print("length == {0}".format(length))
+        if Options.debug:
+            print("length == {0}".format(length))
+
         if length == 0:
             print("A source input file is required.")
         if length < 2:
