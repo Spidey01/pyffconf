@@ -8,10 +8,12 @@ options:
 
     -f format       Override detected input format (ffmpeg -f).
     -F format       Override detected output format (ffmpeg -f).
-    -i              Dump file information.
+    -i              Dump file information (verbose).
+    -r              Report stream information (terse).
 
 """
 
+import re
 import subprocess
 import sys
 
