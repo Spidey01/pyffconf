@@ -164,16 +164,64 @@ class Ffmpeg: #{{{
 
         # Analyze streams and decide how to convert the thing.
         streams = Stream.from_report(self.report(input_path))
+        stream_count = len(streams)
+
         print("SOD")
-        for stream in streams:
-            # print(stream)
-            print("stream=|{0}|".format(stream))
+        for s in streams:
+            print("stream => {0}".format(s))
+
+            map_arg = "-map 0:{0}".format(s.number)
+
+            if s.type == Stream.T_VIDEO:
+                args.append(map_arg)
+                args.append(self._get_stream_args(s.number, s.type))
+                args.append(self._get_libx264_args())
+
+            elif s.type == Stream.T_AUDIO:
+                #
+                # problem:
+                #
+                #   We'll botch the next -map when doing the downmix.
+                #   Maybe we should make a list of output Streams to feed everything with.
+                #
+                if s.channels > 2 and s.info.find('default') != -1:
+                    # We'll do a downmix and a straight stream.
+
+                    # We don't support this before stream 1.
+                    assert s.number > 0
+
+                    # Two -map instances so we have the extra stream in the output.
+                    args.extend([map_arg, map_arg])
+
+                    # The downmixed stereo copy of the stream.
+                    args.append(self._get_stream_args(s.number, s.type))
+                    args.append(self._get_aac_downmix_args(s))
+
+                    # The surround copy of the stream.
+                    args.append(self._get_stream_args(s.number+1, s.type))
+                    args.append(self._get_aac_args(s))
+                else:
+                    # Just a straight stream.
+                    args.append(map_arg)
+                    args.append(self._get_stream_args(s.number, s.type))
+                    args.append(self._get_aac_args(s))
+
         print("EOF")
 
 
         args.append(output_path)
 
-        subprocess.check_call(args)
+        for a in args:
+            print(a)
+        # subprocess.check_call(args)
+    #}}}
+
+    def _get_stream_args(self, n, t): #{{{
+        if t == Stream.T_VIDEO:
+            return "-c:v:{0} ".format(n)
+        elif t == Stream.T_AUDIO:
+            return "-c:a:{0} ".format(n)
+        raise ValueError("Invalid")
     #}}}
 
 
