@@ -10,8 +10,7 @@ options:
     -F format       Override detected output format (ffmpeg -f).
     -i              Dump file information (verbose).
     -r              Report stream information (terse).
-    -C              Input audio is feature surround + commentary stereo.
-    -d              Input audio is feature in surround + stereo.
+    -d stream       Input audio is srround and should become downmix+surround.
 
 """
 
@@ -154,7 +153,7 @@ class Ffmpeg: #{{{
     #}}}
 
 
-    def convert(self, input_path, output_path): #{{{
+    def convert(self, options, input_path, output_path): #{{{
         """Smart conversion of input_path to output_path."""
 
         args = ["/bin/echo",
@@ -291,27 +290,28 @@ def parse_arguments(argv): #{{{
             description="Convertion tool built in Python and using ffmpeg.")
     p.add_argument('--debug', action='store_true',
             help="For developers.")
-    p.add_argument('-C', '--second-stream-is-commentary', action='store_true', dest='commentary_follows',
-            help="Audio streams are surround feature followed by commentary.")
     p.add_argument('-F', '--output-format', dest='output_format', type=str, metavar='FORMAT',
             help="Force output container to be in FORMAT.")
-    p.add_argument('-d', '--second-stream-is-downmixed', action='store_true', dest='downmix_follows',
-            help="Audio streams are surround feature followed by already downmixed feature.")
     p.add_argument('-f', '--input-format', dest='input_format', type=str, metavar='FORMAT',
             help="Force input container to be detected as FORMAT.")
     p.add_argument('-i', '--information', action='store_true', dest='info',
             help="Verbose dump of file contents.")
     p.add_argument('-r', '--report', action='store_true', dest='report',
             help="Concise report of file contents.")
+    p.add_argument('-d', '--downmix', dest='downmix_from', type=int, metavar='STREAM_NUMBER',
+            help="Create stereo downmix and surround from surround STREAM_NUMBER.")
+    p.add_argument('-c', '--commentary', dest='commentary_from', type=int, metavar='STREAM_NUMBER',
+            help="Mark STREAM_NUMBER as commentary.")
+
     p.add_argument('file_list', nargs=argparse.REMAINDER)
 
     args = p.parse_args(argv[1:])
 
     if args.debug:
         print("debug                => {0}".format(args.debug))
-        print('commentary_follows   => {0}'.format(args.commentary_follows))
+        print('commentary_from      => {0}'.format(args.commentary_from))
         print("output_format        => {0}".format(args.output_format))
-        print('downmix_follows      => {0}'.format(args.downmix_follows))
+        print('downmix_from         => {0}'.format(args.downmix_from))
         print("input_format         => {0}".format(args.input_format))
         print('info                 => {0}'.format(args.info))
         print('report               => {0}'.format(args.report))
@@ -357,7 +357,7 @@ def main(argv): #{{{
         sys.exit(1)
 
     assert length == 2
-    ffmpeg.convert(*Options.file_list)
+    ffmpeg.convert(Options, *Options.file_list)
 #}}}
 
 
