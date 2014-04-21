@@ -310,6 +310,8 @@ class Ffmpeg: #{{{
             comment = 'surround'
             if stream.channels == 8:
                 title = '7.1'
+            elif stream.channels == 7:
+                title = '6.1'
             elif stream.channels == 6:
                 title = '5.1'
             else:
