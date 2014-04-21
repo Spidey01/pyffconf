@@ -18,6 +18,7 @@ try:
     import argparse
 except:
     print("You need to install the argparse module or upgrade to Python 2.7+.")
+import copy
 import re
 import subprocess
 import sys
@@ -43,6 +44,9 @@ class Stream: #{{{
         The input is in the same format as a From a Stream ... element
         of Ffmpeg.report().
         """
+
+        if stream_line == None:
+            return
 
         # XXX #0: should be more dynamic but this is fine in practice.
         if not stream_line.startswith('Stream #0:'):
@@ -83,6 +87,11 @@ class Stream: #{{{
                 self.channels = int(main) + int(re.sub('\(.+', '', lfe))
             else:
                 self.channels = ch
+
+        # used internally.
+
+        self._force_downmix = None
+        self._auto_convert = None
     #}}}
 
 
@@ -93,8 +102,11 @@ class Stream: #{{{
     format={2},
     channels={3},
     rate={4},
-    info={5}
-)""".format(self.number, self.type, self.format, self.channels, self.rate, self.info)
+    info={6}
+    _force_downmix={6},
+    _auto_convert={7},
+)""".format(self.number, self.type, self.format, self.channels, self.rate, self.info,
+            self._force_downmix, self._auto_convert)
     #}}}
 
 
@@ -156,106 +168,173 @@ class Ffmpeg: #{{{
     def convert(self, options, input_path, output_path): #{{{
         """Smart conversion of input_path to output_path."""
 
-        args = ["/bin/echo",
+        args = [#"/bin/echo",
             "ffmpeg",
             "-i", input_path,
         ]
 
-        # Analyze streams and decide how to convert the thing.
-        streams = Stream.from_report(self.report(input_path))
-        stream_count = len(streams)
+        streams = self._make_streams_for_convert(options, input_path)
 
-        print("SOD")
-        for s in streams:
-            print("stream => {0}".format(s))
+        if options.debug:
+            print("SOD")
+            for s in streams:
+                print("output stream => {0}".format(s))
+            print("EOF")
 
-            map_arg = "-map 0:{0}".format(s.number)
+        args.extend(self._get_convert_args_for(streams))
 
-            if s.type == Stream.T_VIDEO:
-                args.append(map_arg)
-                args.append(self._get_stream_args(s.number, s.type))
-                args.append(self._get_libx264_args())
-
-            elif s.type == Stream.T_AUDIO:
-                #
-                # problem:
-                #
-                #   We'll botch the next -map when doing the downmix.
-                #   Maybe we should make a list of output Streams to feed everything with.
-                #
-                if s.channels > 2 and s.info.find('default') != -1:
-                    # We'll do a downmix and a straight stream.
-
-                    # We don't support this before stream 1.
-                    assert s.number > 0
-
-                    # Two -map instances so we have the extra stream in the output.
-                    args.extend([map_arg, map_arg])
-
-                    # The downmixed stereo copy of the stream.
-                    args.append(self._get_stream_args(s.number, s.type))
-                    args.append(self._get_aac_downmix_args(s))
-
-                    # The surround copy of the stream.
-                    args.append(self._get_stream_args(s.number+1, s.type))
-                    args.append(self._get_aac_args(s))
-                else:
-                    # Just a straight stream.
-                    args.append(map_arg)
-                    args.append(self._get_stream_args(s.number, s.type))
-                    args.append(self._get_aac_args(s))
-
-        print("EOF")
-
-
+        if output_path.find('.') == -1:
+            # useful when testing against /dev/null.
+            args.extend(['-f', 'mp4'])
         args.append(output_path)
 
-        for a in args:
-            print(a)
-        # subprocess.check_call(args)
+        if options.debug:
+            print("About to execute command:")
+            for a in args:
+                print(a)
+            print("===========")
+        subprocess.check_call(args)
     #}}}
 
-    def _get_stream_args(self, n, t): #{{{
-        if t == Stream.T_VIDEO:
-            return "-c:v:{0} ".format(n)
-        elif t == Stream.T_AUDIO:
-            return "-c:a:{0} ".format(n)
+
+    def _make_streams_for_convert(self, options, input_path): #{{{
+        # Analyze streams and decide how to convert the thing.
+        in_streams = Stream.from_report(self.report(input_path))
+        out_streams = []
+
+        for s in in_streams:
+            # print("stream => {0}".format(s))
+            print("stream # {0}".format(s.number))
+
+            if s.type == Stream.T_VIDEO:
+                self._stream_clone(out_streams, s)
+            elif s.type == Stream.T_AUDIO:
+                if s.number == options.downmix_from:
+                    new_s = self._stream_clone(out_streams, s)
+                    new_s._force_downmix = True
+                    # these parts are ignored; we set them for pretty print/debug.
+                    new_s.format = 'ac3'
+                    new_s.channels = '2'
+                    self._stream_clone(out_streams, s)
+                else:
+                    self._stream_clone(out_streams, s)
+        return out_streams
+    #}}}
+
+
+    def _get_convert_args_for(self, streams): #{{{
+        args = []
+
+        for s in streams:
+            args.extend(self._get_map_args(s))
+
+        for s in streams:
+            if s.type == Stream.T_VIDEO:
+                args.append(self._get_stream_args(s))
+                args.extend(self._get_libx264_args())
+            elif s.type == Stream.T_AUDIO:
+                args.append(self._get_stream_args(s))
+                if s._force_downmix:
+                    args.extend(self._get_aac_downmix_args(s))
+                else:
+                    args.extend(self._get_aac_args(s))
+
+        return args
+    #}}}
+
+
+    def _stream_clone(self, out, stream): #{{{
+        """Clone from stream into lis.
+           Update stream number, etc.
+           Return clone of stream.
+        """
+
+        s = copy.deepcopy(stream)
+        if len(out) > 0:
+            # increment stream #.
+            s.number = out[-1].number + 1
+        out.append(s)
+        return s
+    #}}}
+
+
+    def _get_map_args(self, stream): #{{{
+        return ['-map', '0:{0}'.format(stream.number)]
+    #}}}
+
+
+    def _get_stream_args(self, stream): #{{{
+        if stream.type == Stream.T_VIDEO:
+            return "-c:v:{0}".format(stream.number)
+        elif stream.type == Stream.T_AUDIO:
+            return "-c:a:{0}".format(stream.number)
         raise ValueError("Invalid")
     #}}}
 
 
     def _get_libx264_args(self, crf=23, profile='high', preset='medium', level='4.1'): #{{{
-        return "libx264 -crf {0} -profile:v {1} -preset {2} -level {3}".format(crf, profile, preset, level)
+        # return "libx264 -crf {0} -profile:v {1} -preset {2} -level {3}".format(crf, profile, preset, level)
+        return [
+            'libx264',
+            '-crf',         str(crf),
+            '-profile:v',   str(profile),
+            '-preset',      str(preset),
+            '-level',       str(level)
+        ]
     #}}}
 
 
     # TODO replace override_comment with just using metadata['comment'].
-    def _get_aac_args(self, stream, bitrate=None, metadata={}): #{{{
+    def _get_aac_args(self, stream, bitrate=None, metadata=None): #{{{
+        comment = ''
+        title = ''
+
         if stream.channels == 2: # stereo
             bitrate = bitrate or '192k'
             comment = 'stereo'
+            title = '2/0'
         elif stream.channels > 2: # surround
-            bitrate = bitrate or '640k'
+            bitrate = bitrate or '576k'
             comment = 'surround'
+            if stream.channels == 8:
+                title = '7.1'
+            elif stream.channels == 6:
+                title = '5.1'
+            else:
+                title = 'unknown'
         else:
             return 'copy'
 
+        if metadata is None:
+            metadata = {}
+        metadata['title'] = metadata.get('title', title)
         metadata['comment'] = metadata.get('comment', comment)
 
-        p = 'aac -ab:{0} {1}'.format(stream.number, bitrate, stream.number-1)
+        p = [
+            'aac',
+            '-ab:{0}'.format(stream.number),
+            str(bitrate)
+        ]
+
         for k, v in metadata.items():
-            p = p + ' -metadata:s:a:{0} "{1}={2}"'.format(stream.number-1, k, v)
-        p = p + ' -strict experimental'
+            p.extend([
+                '-metadata:s:a:{0}'.format(stream.number-1),
+                '{0}={1}'.format(k, v)
+            ])
+        p.extend(['-strict', 'experimental'])
 
         return p
     #}}}
 
 
-    def _get_aac_downmix_args(self, stream, bitrate=None, metadata={}): #{{{
+    def _get_aac_downmix_args(self, stream, bitrate=None, metadata=None): #{{{
         """Get flags to convert stream to aac, and downmix to stereo.
 
         If bitrate is None then a default will be used.
         """
+
+        if metadata is None:
+            metadata = {}
 
         #
         # We override the title metadata because we're downmixing and ffmpeg
@@ -272,10 +351,26 @@ class Ffmpeg: #{{{
         bitrate = bitrate or '576k'
 
         # could we reuse _get_acc_args here and keep ffmpeg happy?
-        p = ''
+
+        p = ['aac']
         for k, v in metadata.items():
-            p = p + ' -metadata:s:a:{0} "{1}={2}"'.format(stream.number-1, k, v)
-        return 'aac {0} -ab:{1} {2} -filter:{1} aresample=matrix_encoding=dplii -ac:{1} 2 -strict experimental'.format(p, stream.number, bitrate)
+            p.extend([
+                '-metadata:s:a:{0}'.format(stream.number-1),
+                '{0}={1}'.format(k, v)
+            ])
+        p.extend([
+            '-ab:{0}'.format(stream.number),
+            str(bitrate),
+            '-filter:{0}'.format(stream.number),
+            'aresample=matrix_encoding=dplii',
+            '-ac:{0}'.format(stream.number),
+            '2',
+            '-strict',
+            'experimental'
+        ])
+
+        return p
+
     #}}}
 
 
