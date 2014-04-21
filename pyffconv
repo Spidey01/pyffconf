@@ -91,7 +91,7 @@ class Stream: #{{{
         # used internally.
 
         self._force_downmix = None
-        self._auto_convert = None
+        self._is_commentary = False
     #}}}
 
 
@@ -104,9 +104,9 @@ class Stream: #{{{
     rate={4},
     info={6}
     _force_downmix={6},
-    _auto_convert={7},
+    _is_commentary={7},
 )""".format(self.number, self.type, self.format, self.channels, self.rate, self.info,
-            self._force_downmix, self._auto_convert)
+            self._force_downmix, self._is_commentary)
     #}}}
 
 
@@ -214,6 +214,10 @@ class Ffmpeg: #{{{
             if s.type == Stream.T_VIDEO:
                 self._stream_clone(out_streams, s)
             elif s.type == Stream.T_AUDIO:
+                # could be dirty but hey, it works nice.
+                if s.number in options.commentaries_from:
+                    s._is_commentary = True
+
                 if s.number == options.downmix_from:
                     new_s = self._stream_clone(out_streams, s)
                     new_s._force_downmix = True
@@ -238,11 +242,14 @@ class Ffmpeg: #{{{
                 args.append(self._get_stream_args(s))
                 args.extend(self._get_libx264_args())
             elif s.type == Stream.T_AUDIO:
+                md = {}
+                if s._is_commentary:
+                    md['comment'] = 'commentary'
                 args.append(self._get_stream_args(s))
                 if s._force_downmix:
-                    args.extend(self._get_aac_downmix_args(s))
+                    args.extend(self._get_aac_downmix_args(s, None, md))
                 else:
-                    args.extend(self._get_aac_args(s))
+                    args.extend(self._get_aac_args(s, None, md))
 
         return args
     #}}}
@@ -400,7 +407,8 @@ def parse_arguments(argv): #{{{
             help="Concise report of file contents.")
     p.add_argument('-d', '--downmix', dest='downmix_from', type=int, metavar='STREAM_NUMBER',
             help="Create stereo downmix and surround from surround STREAM_NUMBER.")
-    p.add_argument('-c', '--commentary', dest='commentary_from', type=int, metavar='STREAM_NUMBER',
+    p.add_argument('-c', '--commentary', action='append', dest='commentaries_from',
+            type=int, metavar='STREAM_NUMBER',
             help="Mark STREAM_NUMBER as commentary.")
 
     p.add_argument('file_list', nargs=argparse.REMAINDER)
@@ -409,7 +417,7 @@ def parse_arguments(argv): #{{{
 
     if args.debug:
         print("debug                => {0}".format(args.debug))
-        print('commentary_from      => {0}'.format(args.commentary_from))
+        print('commentaries_from    => {0}'.format(args.commentaries_from))
         print("output_format        => {0}".format(args.output_format))
         print('downmix_from         => {0}'.format(args.downmix_from))
         print("input_format         => {0}".format(args.input_format))
