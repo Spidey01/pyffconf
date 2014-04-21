@@ -410,7 +410,7 @@ def parse_arguments(argv): #{{{
     p.add_argument('-d', '--downmix', dest='downmix_from', type=int, metavar='STREAM_NUMBER',
             help="Create stereo downmix and surround from surround STREAM_NUMBER.")
     p.add_argument('-c', '--commentary', action='append', dest='commentaries_from',
-            type=int, metavar='STREAM_NUMBER',
+            type=int, metavar='STREAM_NUMBER', default=[],
             help="Mark STREAM_NUMBER as commentary.")
 
     p.add_argument('file_list', nargs=argparse.REMAINDER)
