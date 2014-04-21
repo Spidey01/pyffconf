@@ -170,8 +170,11 @@ class Ffmpeg: #{{{
 
         args = [#"/bin/echo",
             "ffmpeg",
-            "-i", input_path,
         ]
+        if options.input_format:
+            args.extend(['-f', options.input_format])
+
+        args.extend(['-i', input_path])
 
         streams = self._make_streams_for_convert(options, input_path)
 
