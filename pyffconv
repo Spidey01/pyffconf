@@ -183,7 +183,9 @@ class Ffmpeg: #{{{
 
         args.extend(self._get_convert_args_for(streams))
 
-        if output_path.find('.') == -1:
+        if options.output_format:
+            args.extend(['-f', options.output_format])
+        elif output_path.find('.') == -1:
             # useful when testing against /dev/null.
             args.extend(['-f', 'mp4'])
         args.append(output_path)
